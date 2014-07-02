@@ -90,8 +90,19 @@ Examples:
       MessageBox.Show(pair.Key & ": " & pair.Value)
     Next
 
+3)  SELECT for a single COLUMN  (any number of records with a single column) - returns a List(Of String)
 
-3) SELECT for multiple records - returns a List of records, each of which is a Dictionary(Of String, String)
+    Dim results As New List(Of String)
+    Using sql As New MySQL_Connection(MYSQL_CONNECTION_STRING)
+      sql.query = "SELECT DISTINCT Last_Name From Movie_Stars"
+      results = sql.selectQueryForSingleColumn()
+    End Using
+     
+    For Each lastName As String In results
+      MessageBox.Show("Last Name: " & lastName)
+    Next
+     
+4) SELECT for multiple records - returns a List of records, each of which is a Dictionary(Of String, String)
 
     Dim results As New List(Of Dictionary(Of String, String)
     Using sql As New MySQL_Connection(MYSQL_CONNECTION_STRING)
@@ -119,7 +130,7 @@ Examples:
       Next
     Next
     
-4) Insert, Update, Delete (these return the number of records affected)
+5) Insert, Update, Delete (these return the number of records affected)
 
     Dim deletions as Integer = 0
     Using sql As New MySQL_Connection(MYSQL_CONNECTION_STRING)
