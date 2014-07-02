@@ -172,6 +172,33 @@ Public Class MySQL_Connection
 
         Return record
     End Function
+    
+    '' a select query where you expect only one column returned for any number of records - returns a List(of String)
+    Public Function selectQueryForSingleColumn(Optional ByVal query As String = "") As List(Of String)
+        If (isDisposed = True) Then Throw New ObjectDisposedException("Cannot execute query - connection has been disposed")
+        If (query = "") Then query = quer
+        If (query = "") Then Throw New Exception("Cannot execute empty query")
+
+        comm = New MySqlCommand(query, conn)
+        '' if parameters were set, loop through and set them in the command
+        If (prms.Count > 0) Then
+            For Each pair In prms
+                comm.Parameters.AddWithValue(pair.Key, pair.Value)
+            Next
+        End If
+
+        Dim allRecords As New List(Of String)
+        Dim reader As MySqlDataReader = comm.ExecuteReader()
+
+        If reader.HasRows Then
+            While reader.Read()
+                allRecords.Add(reader(0).ToString)
+            End While
+        End If
+        reader.Close()
+        comm.Dispose()
+        Return allRecords
+    End Function
 
     '' a select query where you expect (the possibility of) multiple columns and/or multiple records
     '' returns a List(Of Dictionary(Of String, String)) of all the records
