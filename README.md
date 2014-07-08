@@ -168,6 +168,21 @@ Examples:
     End Using
     MessageBox.Show("Updated " & updates.toString & " row(s)")
     MessageBox.Show("Inserted " & inserts.toString & " row(s)")
+
+
+
+6)  All methods will throw a generic Exception for improper connection string/parameters and a MySqlException for MySQL errors
+
+    Try
+      Using sql As New MySQL_Connection(MYSQL_CONNECTION_STRING)
+        dim str as string = sql.selectQueryForSingleValue("SELECT Last_Name FROM Movie_Stars LIMIT 1")
+        Messagebox.Show(str)
+      End Using
+    Catch ex as MySqlException
+      MessageBox.Show(ex.Number & " - " & ex.Message)
+    Catch ex as Exception
+      MessageBox.Show("Connection error: " & ex.Message)
+    End Try
     
     
 If you have any questions, comments, etc. you know what to do. Feel free to submit pull requests and issues. I hope this helps speed up your SQL connection coding!
