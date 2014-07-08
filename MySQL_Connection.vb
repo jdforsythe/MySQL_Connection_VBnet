@@ -90,7 +90,7 @@ Public Class MySQL_Connection
                 End If
                 conn = New MySqlConnection(str)
                 conn.Open()
-            Catch ex As Exception
+            Catch ex As MySqlException
                 Throw ex
             End Try
         Else
@@ -105,7 +105,7 @@ Public Class MySQL_Connection
             Try
                 conn = New MySqlConnection(connectionString)
                 conn.Open()
-            Catch ex As Exception
+            Catch ex As MySqlException
                 Throw ex
             End Try
         Else
@@ -132,15 +132,24 @@ Public Class MySQL_Connection
         If (query = "") Then query = quer
         If (query = "") Then Throw New Exception("Cannot execute empty query")
 
-        comm = New MySqlCommand(query, conn)
-        '' if parameters were set, loop through and set them in the command
-        If (prms.Count > 0) Then
-            For Each pair In prms
-                comm.Parameters.AddWithValue(pair.Key, pair.Value)
-            Next
-        End If
+        Dim result As String = ""
 
-        Return Convert.ToString(comm.ExecuteScalar())
+        Try
+            comm = New MySqlCommand(query, conn)
+            '' if parameters were set, loop through and set them in the command
+            If (prms.Count > 0) Then
+                For Each pair In prms
+                    comm.Parameters.AddWithValue(pair.Key, pair.Value)
+                Next
+            End If
+
+            Dim result As String = Convert.ToString(comm.ExecuteScalar())
+        Catch ex As MySqlException
+            Throw ex
+        Finally
+            comm.Dispose()
+            Return result
+        End Try
     End Function
 
     '' a select query where you expect only one record returned - returns a dictionary(of string, string)
@@ -148,56 +157,33 @@ Public Class MySQL_Connection
         If (isDisposed = True) Then Throw New ObjectDisposedException("Cannot execute query - connection has been disposed")
         If (query = "") Then query = quer
         If (query = "") Then Throw New Exception("Cannot execute empty query")
+        Dim record As New dictionary(Of String, String)
 
-        comm = New MySqlCommand(query, conn)
-        '' if parameters were set, loop through and set them in the command
-        If (prms.Count > 0) Then
-            For Each pair In prms
-                comm.Parameters.AddWithValue(pair.Key, pair.Value)
-            Next
-        End If
+        Try
+            comm = New MySqlCommand(query, conn)
+            '' if parameters were set, loop through and set them in the command
+            If (prms.Count > 0) Then
+                For Each pair In prms
+                    comm.Parameters.AddWithValue(pair.Key, pair.Value)
+                Next
+            End If
 
-        Dim record As New Dictionary(Of String, String)
-        Dim reader As MySqlDataReader = comm.ExecuteReader()
-        '' if there are rows
-        If reader.HasRows Then
-            reader.Read()
-            '' get the keys/values for the first record and add them to the dictionary
-            For i As Integer = 0 To (reader.FieldCount - 1)
-                record.Add(reader.GetName(i), reader(i).ToString)
-            Next
-        End If
-        reader.Close()
-        comm.Dispose()
-
-        Return record
-    End Function
-    
-    '' a select query where you expect only one column returned for any number of records - returns a List(of String)
-    Public Function selectQueryForSingleColumn(Optional ByVal query As String = "") As List(Of String)
-        If (isDisposed = True) Then Throw New ObjectDisposedException("Cannot execute query - connection has been disposed")
-        If (query = "") Then query = quer
-        If (query = "") Then Throw New Exception("Cannot execute empty query")
-
-        comm = New MySqlCommand(query, conn)
-        '' if parameters were set, loop through and set them in the command
-        If (prms.Count > 0) Then
-            For Each pair In prms
-                comm.Parameters.AddWithValue(pair.Key, pair.Value)
-            Next
-        End If
-
-        Dim allRecords As New List(Of String)
-        Dim reader As MySqlDataReader = comm.ExecuteReader()
-
-        If reader.HasRows Then
-            While reader.Read()
-                allRecords.Add(reader(0).ToString)
-            End While
-        End If
-        reader.Close()
-        comm.Dispose()
-        Return allRecords
+            Dim reader As MySqlDataReader = comm.ExecuteReader()
+            '' if there are rows
+            If reader.HasRows Then
+                reader.Read()
+                '' get the keys/values for the first record and add them to the dictionary
+                For i As Integer = 0 To (reader.FieldCount - 1)
+                    record.Add(reader.GetName(i), reader(i).ToString)
+                Next
+            End If
+        Catch ex As MySqlException
+            Throw ex
+        Finally
+            reader.Close()
+            comm.Dispose()
+            Return record
+        End Try
     End Function
 
     '' a select query where you expect (the possibility of) multiple columns and/or multiple records
@@ -207,34 +193,38 @@ Public Class MySQL_Connection
         If (isDisposed = True) Then Throw New ObjectDisposedException("Cannot execute query - connection has been disposed")
         If (query = "") Then query = quer
         If (query = "") Then Throw New Exception("Cannot execute empty query")
-
-        comm = New MySqlCommand(query, conn)
-        '' if parameters were set, loop through and set them in the command
-        If (prms.Count > 0) Then
-            For Each pair In prms
-                comm.Parameters.AddWithValue(pair.Key, pair.Value)
-            Next
-        End If
-
         Dim allRecords As New List(Of Dictionary(Of String, String))
-        Dim record As Dictionary(Of String, String)
-        Dim reader As MySqlDataReader = comm.ExecuteReader()
 
-        If reader.HasRows Then
-            While reader.Read()
-                '' create a new dictionary for the record, adding each column and value
-                record = New Dictionary(Of String, String)
-                For i As Integer = 0 To (reader.FieldCount - 1)
-                    record.Add(reader.GetName(i), reader(i).ToString)
+        Try
+            comm = New MySqlCommand(query, conn)
+            '' if parameters were set, loop through and set them in the command
+            If (prms.Count > 0) Then
+                For Each pair In prms
+                    comm.Parameters.AddWithValue(pair.Key, pair.Value)
                 Next
-                '' add the dictionary to the List
-                allRecords.Add(record)
-            End While
-        End If
+            End If
 
-        reader.Close()
-        comm.Dispose()
-        Return allRecords
+            Dim record As Dictionary(Of String, String)
+            Dim reader As MySqlDataReader = comm.ExecuteReader()
+
+            If reader.HasRows Then
+                While reader.Read()
+                    '' create a new dictionary for the record, adding each column and value
+                    record = New Dictionary(Of String, String)
+                    For i As Integer = 0 To (reader.FieldCount - 1)
+                        record.Add(reader.GetName(i), reader(i).ToString)
+                    Next
+                    '' add the dictionary to the List
+                    allRecords.Add(record)
+                End While
+            End If
+        Catch ex As MySqlException
+            Throw ex
+        Finally
+            reader.Close()
+            comm.Dispose()
+            Return allRecords
+        End Try
     End Function
 
     '' an insert query, returns the number of rows affected
@@ -242,15 +232,23 @@ Public Class MySQL_Connection
         If (isDisposed = True) Then Throw New ObjectDisposedException("Cannot execute query - connection has been disposed")
         If (query = "") Then query = quer
         If (query = "") Then Throw New Exception("Cannot execute empty query")
+        Dim affectedRecords As Integer = 0
 
-        comm = New MySqlCommand(query, conn)
-        '' if parameters were set, loop through and set them in the command
-        If (prms.Count > 0) Then
-            For Each pair In prms
-                comm.Parameters.AddWithValue(pair.Key, pair.Value)
-            Next
-        End If
-        Return comm.ExecuteNonQuery()
+        Try
+            comm = New MySqlCommand(query, conn)
+            '' if parameters were set, loop through and set them in the command
+            If (prms.Count > 0) Then
+                For Each pair In prms
+                    comm.Parameters.AddWithValue(pair.Key, pair.Value)
+                Next
+            End If
+            affectedRecords = comm.ExecuteNonQuery()
+        Catch ex As MySqlException
+            Throw ex
+        Finally
+            comm.Dispose()
+            Return affectedRecords
+        End Try
     End Function
 
     '' updating is essentially the same as inserting - returns the number of rows affected
